@@ -8,10 +8,21 @@
 #   • push of a version tag — `git tag v1.0.0 && git push origin v1.0.0`
 #
 # ───────────────────────────────────────────────────────────────────────────
+# ARTIFACTS (each artifact zip always contains a real `.ipa` file)
+#   ios-ipa           signed path   → mobile/build/ios/ipa/<name>.ipa
+#                                    (installable / TestFlight-ready)
+#   ios-unsigned-ipa  fail-soft path → mobile/build/ios/ipa/Salon-unsigned.ipa
+#                                    (IPA zip = Payload/Runner.app; compile +
+#                                    packaging proof only — NO code signature,
+#                                    will NOT install on a stock iPhone)
+# Download the artifact zip from the run page → unzip once → you get the .ipa.
+#
+# ───────────────────────────────────────────────────────────────────────────
 # REQUIRED repository SECRETS (Settings → Secrets and variables → Actions
 # → New repository secret). Needed ONLY for a signed IPA — when they are
 # missing the job still runs green: it builds `flutter build ios --release
-# --no-codesign` and uploads an `ios-unsigned` artifact instead:
+# --no-codesign`, wraps `Runner.app` in a `Payload/` zip as
+# `Salon-unsigned.ipa`, and uploads the `ios-unsigned-ipa` artifact instead:
 #   P12_BASE64               base64 of the Apple signing certificate (.p12)
 #   PROVISION_PROFILE_BASE64 base64 of the .mobileprovision matching bundle id
 #                            com.salon.salonMobile
@@ -121,7 +132,7 @@ jobs:
             echo "Signing secrets present → building a SIGNED IPA."
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Signing secrets missing:$missing → unsigned iOS build (compile proof) instead of a signed IPA. Setup: deploy/IOS_CI.md"
+            echo "::notice::Signing secrets missing:$missing → unsigned .ipa artifact 'ios-unsigned-ipa' (Salon-unsigned.ipa, no code signature — compile/packaging proof, NOT installable on a stock iPhone). Setup: deploy/IOS_CI.md"
           fi
 
       # ── Signed path only: import .p12 + provisioning profile (runner-local) ──
@@ -256,8 +267,11 @@ jobs:
           fi
           ls -la build/ios/ipa
 
-      # ── Fail-soft path: no Apple certificates configured → prove it compiles ──
-      - name: Build unsigned iOS app (no signing secrets)
+      # ── Fail-soft path: no Apple certificates → compile + package an IPA ──
+      # The artifact must contain a real .ipa (a zip whose top-level entry is
+      # Payload/Runner.app) — a bare Runner.app tree is NOT an IPA and cannot
+      # be installed or delivered anywhere.
+      - name: Build unsigned iOS app + package .ipa (no signing secrets)
         if: steps.signing.outputs.available != 'true'
         run: |
           set -euo pipefail
@@ -266,6 +280,30 @@ jobs:
             --dart-define=USE_MOCK_API="$USE_MOCK_API" \
             --dart-define=PAYMENT_MOCK="$PAYMENT_MOCK"
           ls -la build/ios/iphoneos/Runner.app
+
+          # Build the IPA file structure: <ipa> = zip of Payload/Runner.app
+          # (-y stores symlinks inside .framework bundles as links, as Apple expects)
+          rm -rf build/ios/ipa_payload build/ios/ipa
+          mkdir -p build/ios/ipa_payload/Payload build/ios/ipa
+          cp -R build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+          (
+            cd build/ios/ipa_payload
+            zip -qry ../../ios/ipa/Salon-unsigned.ipa Payload
+          )
+          ls -la build/ios/ipa
+
+          # Sanity check: it really is an IPA-shaped zip (Payload/ first entry).
+          python3 - <<'PY'
+          import zipfile
+
+          path = "build/ios/ipa/Salon-unsigned.ipa"
+          with zipfile.ZipFile(path) as zf:
+              names = zf.namelist()
+          assert names, "empty ipa"
+          assert names[0].startswith("Payload/"), names[:3]
+          assert "Payload/Runner.app/Info.plist" in names, "Runner.app/Info.plist missing"
+          print(f"OK: {path} — {len(names)} entries, first = {names[0]}")
+          PY
 
       - name: Upload signed IPA artifact
         if: steps.signing.outputs.available == 'true'
@@ -277,12 +315,12 @@ jobs:
           retention-days: 14
           overwrite: true
 
-      - name: Upload unsigned build artifact
+      - name: Upload unsigned IPA artifact
         if: steps.signing.outputs.available != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ios-unsigned
-          path: mobile/build/ios/iphoneos/Runner.app
+          name: ios-unsigned-ipa
+          path: mobile/build/ios/ipa/*.ipa
           if-no-files-found: error
           retention-days: 7
           overwrite: true
@@ -299,8 +337,11 @@ jobs:
             echo "- Dart defines: \`API_BASE_URL=$API_BASE_URL\`, \`USE_MOCK_API=$USE_MOCK_API\`, \`PAYMENT_MOCK=$PAYMENT_MOCK\`"
             if [ "${SIGNED:-}" = "true" ]; then
               echo "- Mode: **signed IPA** → artifact \`ios-ipa\` (\`mobile/build/ios/ipa/*.ipa\`), export method \`$EXPORT_METHOD\`"
+              echo "- Download the artifact zip → unzip → install / upload to TestFlight or App Store Connect."
             else
               echo "- Mode: **unsigned** — Apple signing secrets not configured, signed IPA step skipped."
+              echo "- Artifact \`ios-unsigned-ipa\` → \`mobile/build/ios/ipa/Salon-unsigned.ipa\` (zip of \`Payload/Runner.app\`) — download + unzip once to get the \`.ipa\`."
+              echo "- **NOT installable:** this IPA has no code signature — it will **not** install on a stock iPhone. Compile + packaging proof only."
               echo "- Add \`P12_BASE64\`, \`PROVISION_PROFILE_BASE64\`, \`KEYCHAIN_PASSWORD\`, \`APPLE_DEVELOPMENT_TEAM\` to produce a signed IPA (see \`deploy/IOS_CI.md\`)."
             fi
           } >> "$GITHUB_STEP_SUMMARY"

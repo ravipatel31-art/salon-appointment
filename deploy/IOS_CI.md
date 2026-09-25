@@ -2,7 +2,9 @@
 
 Workflow: **`.github/workflows/ios-ipa.yml`**
 Runs on a hosted **macOS runner**, builds the Flutter app in `mobile/` and
-uploads an artifact you can install / upload to App Store Connect.
+uploads an artifact. The **signed** artifact is what you install or upload to
+App Store Connect; the **unsigned** one is a compile/packaging proof only
+(see the warning below).
 
 | Trigger | When |
 |---|---|
@@ -11,11 +13,23 @@ uploads an artifact you can install / upload to App Store Connect.
 
 | Artifact | Produced when | Contents | Retention |
 |---|---|---|---|
-| `ios-ipa` | signing secrets configured | `mobile/build/ios/ipa/*.ipa` (signed) | 14 days |
-| `ios-unsigned` | signing secrets **missing** (fail-soft) | `mobile/build/ios/iphoneos/Runner.app` (compile proof) | 7 days |
+| `ios-ipa` | signing secrets configured | `mobile/build/ios/ipa/*.ipa` (signed, installable) | 14 days |
+| `ios-unsigned-ipa` | signing secrets **missing** (fail-soft) | `mobile/build/ios/ipa/Salon-unsigned.ipa` (real IPA file: zip of `Payload/Runner.app` — compile + packaging proof, **not signed**) | 7 days |
 
 Both paths are green. Missing Apple certificates only change *which* artifact
 appears — contributors without an Apple Developer account never see a red run.
+
+**Downloading either artifact:** the run page gives you a `.zip` — download it
+and unzip **once**; inside you find the `.ipa` file (e.g. `Salon-unsigned.ipa`
+or `<name>.ipa`). Nothing else to unpack: the artifact's payload *is* the IPA.
+
+> **Warning — `Salon-unsigned.ipa` will NOT install on a stock iPhone.** It is
+> zipped correctly (`Payload/Runner.app`) but carries **no code signature**, so
+> iOS refuses to install it, and it cannot go to TestFlight/App Store either. It
+> only proves
+> the app compiles and packages on CI. A real install needs the four signing
+> secrets below (→ signed `ios-ipa`), TestFlight, or an ad-hoc/development
+> profile whose device UDIDs are registered.
 
 Every artifact bakes in the compile-time Dart defines (they are **not** runtime
 config — see `deploy/NOTES.md` §3 and `docs/CONTRACT.md` Flutter notes):
@@ -119,8 +133,9 @@ after the run).
 3. **Actions** tab → **iOS IPA** → **Run workflow** → optionally override
    `api_base_url` / `use_mock_api` / `export_method`.
 4. Wait for the job → bottom of the run page → **Artifacts** → download
-   `ios-ipa`, unzip: that is the IPA to upload to TestFlight/App Store or to
-   install on a device.
+   `ios-ipa` (signed) or `ios-unsigned-ipa` (no signing secrets), unzip the
+   downloaded zip once → you get the `.ipa` to upload to TestFlight/App Store
+   or to install on a device.
 
 Tag-driven builds use the same defaults (no inputs):
 
@@ -135,8 +150,12 @@ git tag v1.0.0 && git push origin v1.0.0
   `xcrun altool --upload-app -f file.ipa -t ios --apiKey <key> --apiIssuer <issuer>`.
 - **Ad hoc / development IPA:** install with Xcode → *Window → Devices and
   Simulators → +*, Apple Configurator, or `ios-deploy -i <udid> -b Runner.app`.
-- **Unsigned artifact:** not installable — it only proves the iOS build
-  compiles on CI.
+- **`ios-unsigned-ipa` (`Salon-unsigned.ipa`):** a correctly shaped IPA
+  (`Payload/Runner.app`) that is **not code-signed → it will NOT install on a
+  stock iPhone** (and can't be uploaded to TestFlight). Use it only as a
+  compile/packaging proof. To actually install, configure the four signing
+  secrets and re-run the workflow to get the signed `ios-ipa`, or distribute
+  via TestFlight/ad-hoc with your own Apple account.
 
 ---
 
@@ -155,6 +174,25 @@ git tag v1.0.0 && git push origin v1.0.0
 4. `flutter build ipa --release --dart-define=… --export-options-plist=…`
    archives the app and runs `xcodebuild -exportArchive` → `build/ios/ipa/*.ipa`.
 5. `actions/upload-artifact@v4` publishes `ios-ipa`.
+
+### Fail-soft path (no signing secrets) — how the unsigned `.ipa` is made
+
+1. `flutter build ios --release --no-codesign` → `build/ios/iphoneos/Runner.app`.
+2. The runner packages it into a real IPA file structure:
+
+   ```bash
+   mkdir -p build/ios/ipa_payload/Payload build/ios/ipa
+   cp -R build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+   cd build/ios/ipa_payload && zip -qry ../../ios/ipa/Salon-unsigned.ipa Payload
+   ```
+
+   (`-y` keeps `.framework` symlinks as links, as Apple expects.)
+3. The job asserts the zip starts with `Payload/` and contains
+   `Payload/Runner.app/Info.plist`, then uploads `ios-unsigned-ipa`
+   from `mobile/build/ios/ipa/*.ipa`.
+
+So the artifact zip always contains an actual `.ipa` file — but again: without
+a certificate + provisioning profile it is unsigned and **will not install**.
 
 Equivalent local command (macOS with certificates already in your keychain):
 
@@ -178,7 +216,7 @@ unsigned compile check.)
 
 | Symptom | Fix |
 |---|---|
-| Job green, artifact `ios-unsigned` | Signing secrets missing/partial — expected. Add the four required secrets. |
+| Job green, artifact `ios-unsigned-ipa` | Signing secrets missing/partial — expected. Unzip once → `Salon-unsigned.ipa` (compile proof, **not installable** without signing). Add the four required secrets and re-run to get `ios-ipa`. |
 | `No signing certificate "…" found` | `.p12`/profile type mismatch — set the `CODE_SIGN_IDENTITY` variable to your identity (see `security find-identity -v -p codesigning` locally) or re-export the right certificate. |
 | `Provisioning profile … doesn't include the selected signing certificate` | Profile and certificate were created for different certificates/teams — regenerate the profile picking the exported certificate, or fix `P12_PASSWORD`. |
 | `No signing identity found in the imported .p12` | The `.p12` has no private key, or `P12_PASSWORD` is wrong. Re-export from the private-key row. |
