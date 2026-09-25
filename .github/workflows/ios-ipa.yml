@@ -1,0 +1,306 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# iOS IPA build — salon-appointment
+# Owner: salon-integration (phase 18 — deploy/CI files).
+# Step-by-step signing guide: deploy/IOS_CI.md
+#
+# Triggers
+#   • workflow_dispatch — GitHub → Actions tab → "iOS IPA" → Run workflow
+#   • push of a version tag — `git tag v1.0.0 && git push origin v1.0.0`
+#
+# ───────────────────────────────────────────────────────────────────────────
+# REQUIRED repository SECRETS (Settings → Secrets and variables → Actions
+# → New repository secret). Needed ONLY for a signed IPA — when they are
+# missing the job still runs green: it builds `flutter build ios --release
+# --no-codesign` and uploads an `ios-unsigned` artifact instead:
+#   P12_BASE64               base64 of the Apple signing certificate (.p12)
+#   PROVISION_PROFILE_BASE64 base64 of the .mobileprovision matching bundle id
+#                            com.salon.salonMobile
+#   KEYCHAIN_PASSWORD        any random string (password of the throwaway
+#                            build keychain created on the runner)
+#   APPLE_DEVELOPMENT_TEAM   10-character Apple Team ID (e.g. AB12CD34EF)
+#
+# OPTIONAL repository SECRETS:
+#   P12_PASSWORD              password the .p12 was exported with (default: none)
+#
+# OPTIONAL repository VARIABLES (same page, "Variables" tab) — non-secret:
+#   EXPORT_METHOD       ExportOptions "method":
+#                       app-store-connect (default) | release-testing | debugging
+#                       (legacy Xcode ≤ 12 names: app-store | ad-hoc | development)
+#   CODE_SIGN_IDENTITY  signing identity name; auto-detected from the imported
+#                       certificate when left empty
+#
+# Compile-time Dart defines baked into every artifact (contract Flutter notes):
+#   API_BASE_URL  default https://salonapp.unonomercysound.online
+#   USE_MOCK_API  default false      PAYMENT_MOCK  ALWAYS false for a release
+#
+# ───────────────────────────────────────────────────────────────────────────
+# SECURITY: never commit secrets — values live only in GitHub Actions secrets
+# (masked in logs) and are written only to the ephemeral macOS runner.
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "API_BASE_URL baked into the binary (--dart-define)"
+        required: false
+        default: "https://salonapp.unonomercysound.online"
+      use_mock_api:
+        description: "USE_MOCK_API dart-define — 'true' only for demo builds"
+        required: false
+        default: "false"
+      export_method:
+        description: "ExportOptions method: app-store-connect | release-testing | debugging"
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Compile-time config — baked into the binary, not runtime config.
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || 'https://salonapp.unonomercysound.online' }}
+  USE_MOCK_API: ${{ github.event.inputs.use_mock_api || 'false' }}
+  PAYMENT_MOCK: "false" # never true in a release build (see docs/CONTRACT.md §10)
+  EXPORT_METHOD: ${{ github.event.inputs.export_method || vars.EXPORT_METHOD || 'app-store-connect' }}
+  SIGNING_IDENTITY: ${{ vars.CODE_SIGN_IDENTITY || '' }}
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    # macos-latest = current GitHub macOS image with the current stable Xcode.
+    # If an image update ever breaks the build, pin to a fixed image, e.g. `macos-14`.
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter (stable channel)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter environment + pub get
+        run: |
+          set -euo pipefail
+          flutter --version
+          flutter doctor -v
+          flutter pub get
+
+      # ── Signing detection: decides signed-IPA vs. unsigned fail-soft path ──
+      - name: Detect Apple signing secrets
+        id: signing
+        env:
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+          PROVISION_PROFILE_BASE64: ${{ secrets.PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${P12_BASE64:-}" ]              || missing="$missing P12_BASE64"
+          [ -n "${PROVISION_PROFILE_BASE64:-}" ] || missing="$missing PROVISION_PROFILE_BASE64"
+          [ -n "${KEYCHAIN_PASSWORD:-}" ]        || missing="$missing KEYCHAIN_PASSWORD"
+          [ -n "${APPLE_DEVELOPMENT_TEAM:-}" ]   || missing="$missing APPLE_DEVELOPMENT_TEAM"
+          if [ -z "$missing" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets present → building a SIGNED IPA."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Signing secrets missing:$missing → unsigned iOS build (compile proof) instead of a signed IPA. Setup: deploy/IOS_CI.md"
+          fi
+
+      # ── Signed path only: import .p12 + provisioning profile (runner-local) ──
+      - name: Import signing certificate + provisioning profile
+        if: steps.signing.outputs.available == 'true'
+        env:
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+          PROVISION_PROFILE_BASE64: ${{ secrets.PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          set -euo pipefail
+          KC="$RUNNER_TEMP/ios-signing.keychain-db"
+          P12="$RUNNER_TEMP/certificate.p12"
+          PROFILE="$RUNNER_TEMP/app.mobileprovision"
+          DECODED="$RUNNER_TEMP/provisioning-profile.plist"
+
+          # base64 → files (python for a decode flag that works on every macOS)
+          printf '%s' "$P12_BASE64" | python3 -c 'import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > "$P12"
+          printf '%s' "$PROVISION_PROFILE_BASE64" | python3 -c 'import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > "$PROFILE"
+
+          # Throwaway keychain: unlocked for the job, first in the search list.
+          security delete-keychain "$KC" >/dev/null 2>&1 || true
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KC"
+          # Keep the runner's own keychains (paths contain no spaces) in the search list.
+          EXISTING_KEYCHAINS=$(security list-keychains -d user | tr -d ' "')
+          # shellcheck disable=SC2086 # intentional word splitting of the keychain list
+          security list-keychains -d user -s "$KC" $EXISTING_KEYCHAINS
+          security import "$P12" -k "$KC" -P "${P12_PASSWORD:-}" -T /usr/bin/codesign -T /usr/bin/security
+          # Let codesign use the key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KC" >/dev/null
+          echo "Identities available on the runner:"
+          security find-identity -v -p codesigning "$KC"
+
+          # Install the provisioning profile where Xcode looks for it.
+          security cms -D -i "$PROFILE" > "$DECODED"
+          UUID=$(plutil -extract UUID raw -o - "$DECODED")
+          PROFILE_NAME=$(plutil -extract Name raw -o - "$DECODED")
+          APP_ID=$(plutil -extract Entitlements.application-identifier raw -o - "$DECODED")
+          DEST="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$DEST"
+          cp "$PROFILE" "$DEST/$UUID.mobileprovision"
+          echo "Provisioning profile '$PROFILE_NAME' (UUID $UUID) installed."
+
+          # Bundle id: application-identifier is "<TEAM_ID>.<bundle.id>" (or a wildcard).
+          BUNDLE_ID="${APP_ID#"${APPLE_DEVELOPMENT_TEAM}."}"
+
+          # Signing identity: explicit variable wins, else pick one that matches
+          # the export method (Distribution for App Store/ad-hoc, Development for
+          # device debugging), else the only identity present.
+          IDENTITY="${SIGNING_IDENTITY:-}"
+          if [ -z "$IDENTITY" ]; then
+            case "$EXPORT_METHOD" in
+              debugging|development) WANT="Develop" ;;
+              *)                    WANT="Distribution" ;;
+            esac
+            IDENTITY=$(security find-identity -v -p codesigning "$KC" | grep -F "$WANT" | head -n1 | sed -n 's/.*"\(.*\)".*/\1/p') || true
+            if [ -z "$IDENTITY" ]; then
+              IDENTITY=$(security find-identity -v -p codesigning "$KC" | head -n1 | sed -n 's/.*"\(.*\)".*/\1/p') || true
+            fi
+          fi
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No signing identity found in the imported .p12 — check P12_BASE64/P12_PASSWORD."
+            exit 1
+          fi
+
+          {
+            echo "PROFILE_NAME=$PROFILE_NAME"
+            echo "BUNDLE_ID=$BUNDLE_ID"
+            echo "SIGNING_IDENTITY=$IDENTITY"
+            # FLUTTER_XCODE_* are forwarded by the Flutter tool to xcodebuild as
+            # build settings — signing config without editing ios/Runner.xcodeproj.
+            echo "FLUTTER_XCODE_DEVELOPMENT_TEAM=$APPLE_DEVELOPMENT_TEAM"
+            echo "FLUTTER_XCODE_CODE_SIGN_STYLE=Manual"
+            echo "FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER=$PROFILE_NAME"
+            echo "FLUTTER_XCODE_CODE_SIGN_IDENTITY=$IDENTITY"
+          } >> "$GITHUB_ENV"
+          echo "Using identity: $IDENTITY (bundle id: $BUNDLE_ID, profile: $PROFILE_NAME)"
+
+      - name: Create ExportOptions.plist
+        if: steps.signing.outputs.available == 'true'
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          set -euo pipefail
+          export OUT="$RUNNER_TEMP/ExportOptions.plist"
+          python3 - <<'PY'
+          import os
+          import plistlib
+
+          method = os.environ.get("EXPORT_METHOD") or "app-store-connect"
+          data = {
+              "method": method,
+              "teamID": os.environ["APPLE_DEVELOPMENT_TEAM"],
+              "signingStyle": "manual",
+              "provisioningProfiles": {
+                  os.environ["BUNDLE_ID"]: os.environ["PROFILE_NAME"]
+              },
+              "uploadBitcode": False,
+              "uploadSymbols": True,
+              "compileBitcode": False,
+          }
+          with open(os.environ["OUT"], "wb") as handle:
+              plistlib.dump(data, handle)
+          print("ExportOptions:", data)
+          PY
+          plutil -lint "$OUT"
+
+      # ── Signed build: flutter build ipa (archive + xcodebuild -exportArchive) ──
+      - name: Build signed IPA
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          args=(
+            build ipa --release
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+            --dart-define=USE_MOCK_API="$USE_MOCK_API"
+            --dart-define=PAYMENT_MOCK="$PAYMENT_MOCK"
+            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+            --build-number="$GITHUB_RUN_NUMBER"
+          )
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            args+=(--build-name="${GITHUB_REF_NAME#v}")
+          fi
+          flutter "${args[@]}"
+          if ! ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
+            echo "::error::No .ipa in build/ios/ipa — inspect the xcodebuild -exportArchive log above. EXPORT_METHOD='$EXPORT_METHOD' must match the provisioning profile type (app-store-connect | release-testing | debugging) and the certificate in P12_BASE64."
+            exit 1
+          fi
+          ls -la build/ios/ipa
+
+      # ── Fail-soft path: no Apple certificates configured → prove it compiles ──
+      - name: Build unsigned iOS app (no signing secrets)
+        if: steps.signing.outputs.available != 'true'
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=USE_MOCK_API="$USE_MOCK_API" \
+            --dart-define=PAYMENT_MOCK="$PAYMENT_MOCK"
+          ls -la build/ios/iphoneos/Runner.app
+
+      - name: Upload signed IPA artifact
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: mobile/build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+
+      - name: Upload unsigned build artifact
+        if: steps.signing.outputs.available != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: mobile/build/ios/iphoneos/Runner.app
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+      - name: Build summary
+        if: always()
+        env:
+          SIGNED: ${{ steps.signing.outputs.available }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## iOS build"
+            echo "- Commit: \`$GITHUB_SHA\` (ref \`$GITHUB_REF_NAME\`)"
+            echo "- Dart defines: \`API_BASE_URL=$API_BASE_URL\`, \`USE_MOCK_API=$USE_MOCK_API\`, \`PAYMENT_MOCK=$PAYMENT_MOCK\`"
+            if [ "${SIGNED:-}" = "true" ]; then
+              echo "- Mode: **signed IPA** → artifact \`ios-ipa\` (\`mobile/build/ios/ipa/*.ipa\`), export method \`$EXPORT_METHOD\`"
+            else
+              echo "- Mode: **unsigned** — Apple signing secrets not configured, signed IPA step skipped."
+              echo "- Add \`P12_BASE64\`, \`PROVISION_PROFILE_BASE64\`, \`KEYCHAIN_PASSWORD\`, \`APPLE_DEVELOPMENT_TEAM\` to produce a signed IPA (see \`deploy/IOS_CI.md\`)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
