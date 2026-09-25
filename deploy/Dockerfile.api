@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# Salon API image (salon-integration, phase 7).
+# Build context is the repository ROOT so backend/ can be copied without
+# escaping the context (see root docker-compose.yml → build.dockerfile).
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Dependency layer — cached until requirements.txt changes.
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Application code: alembic.ini, alembic/, app/
+COPY backend/ ./
+
+EXPOSE 8000
+
+# Migrate → idempotent seed (catalog + env admin) → serve.
+# PORT is honoured (Render injects $PORT; compose sets 8000).
+# The hold-expiry worker starts in-process unless HOLD_EXPIRY_WORKER=0.
+CMD ["sh", "-c", "alembic upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

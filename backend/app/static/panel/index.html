@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Salon — Admin Panel</title>
+  <!-- Phase 16 — same-origin app logo (CSP img-src 'self'), also the favicon -->
+  <link rel="icon" type="image/svg+xml" href="/panel/logo.svg" />
+  <link rel="stylesheet" href="/panel/app.css" />
+</head>
+<body>
+  <!-- ═══════ LOGIN PAGE — route /panel/login (phase 15) ═══════
+       Its own page: no top tabs, no admin shell. The shell below stays
+       hidden until the session lands on a protected route. ═══════ -->
+  <div id="login-view" class="login-view">
+    <div class="login-card">
+      <div class="login-brand">
+        <img class="login-logo" src="/panel/logo.svg" alt="Salon"
+             width="104" height="104" />
+        <h1>Salon <em>Admin</em></h1>
+        <p>Barbers · plan · bookings · dashboard</p>
+      </div>
+      <form id="login-form" autocomplete="on">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="login-email" name="email" required
+                 placeholder="admin@salon.local" autocomplete="username" />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="login-password" name="password" required
+                 placeholder="••••••••" autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn btn-primary btn-block" id="login-submit">
+          Sign in
+        </button>
+        <p id="login-error" class="form-error" hidden></p>
+      </form>
+      <p class="login-foot">Owner access only · same account as the mobile app</p>
+    </div>
+  </div>
+
+  <!-- ══════ ADMIN SHELL — /panel/dashboard + tabs (phase 15) ══════ -->
+  <div id="shell-view" class="shell-view" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" src="/panel/logo.svg" alt="Salon"
+             width="34" height="34" />Salon <em>Admin</em>
+      </div>
+      <nav class="tabs" id="tab-nav" role="tablist">
+        <button class="tab active" data-tab="barbers" role="tab">Barbers</button>
+        <button class="tab" data-tab="services" role="tab">Services</button>
+        <button class="tab" data-tab="bookings" role="tab">Bookings</button>
+        <button class="tab" data-tab="dashboard" role="tab">Dashboard</button>
+      </nav>
+      <div class="topbar-right">
+        <span id="whoami" class="whoami"></span>
+        <button id="logout-btn" class="btn btn-ghost" type="button">Log out</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- ───────────── Barbers (list root: /panel/barbers) ───────────── -->
+      <section id="tab-barbers" class="panel active" role="tabpanel">
+        <div class="panel-head">
+          <div>
+            <h2>Barbers</h2>
+            <p class="muted">Team, photos, bios and weekly working hours.</p>
+          </div>
+          <button class="btn btn-primary" id="barber-new-btn" type="button">+ New barber</button>
+        </div>
+        <div class="card">
+          <table class="table" id="barbers-table">
+            <thead>
+              <tr>
+                <th></th><th>Name</th><th>Bio</th><th>Specialties</th>
+                <th>Status</th><th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="barbers-tbody"></tbody>
+          </table>
+          <p id="barbers-empty" class="empty" hidden>No barbers yet.</p>
+        </div>
+      </section>
+
+      <!-- ───── Services (salon plan) — list root: /panel/services ───── -->
+      <section id="tab-services" class="panel" role="tabpanel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>Salon plan <span class="muted">/ services</span></h2>
+            <p class="muted">Prices in ₹ · hair colour keeps a ₹100 online advance.</p>
+          </div>
+          <button class="btn btn-primary" id="service-new-btn" type="button">+ New service</button>
+        </div>
+        <div class="card">
+          <table class="table" id="services-table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Description</th><th class="num">Duration</th>
+                <th class="num">Price</th><th>Type</th><th>Status</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="services-tbody"></tbody>
+          </table>
+          <p id="services-empty" class="empty" hidden>No services yet.</p>
+        </div>
+      </section>
+
+      <!-- ───────────── Bookings (root: /panel/bookings) ───────────── -->
+      <section id="tab-bookings" class="panel" role="tabpanel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>Bookings</h2>
+            <p class="muted">Times shown in IST · complete or mark no-show.</p>
+          </div>
+        </div>
+        <div class="card filters">
+          <label class="field inline">
+            <span>Date</span>
+            <input type="date" id="bk-date" />
+          </label>
+          <label class="field inline">
+            <span>Barber</span>
+            <select id="bk-barber"><option value="">All barbers</option></select>
+          </label>
+          <label class="field inline">
+            <span>Status</span>
+            <select id="bk-status">
+              <option value="">All statuses</option>
+              <option value="pending_payment">Pending payment</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+              <option value="no_show">No show</option>
+            </select>
+          </label>
+          <button class="btn btn-gold" id="bk-refresh" type="button">Refresh</button>
+          <button class="btn btn-ghost" id="bk-clear" type="button">Clear</button>
+        </div>
+        <div class="card">
+          <table class="table" id="bookings-table">
+            <thead>
+              <tr>
+                <th>Ref</th><th>When (IST)</th><th>Customer</th><th>Service</th>
+                <th>Barber</th><th class="num">Total</th><th class="num">Paid</th>
+                <th>Status</th><th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-tbody"></tbody>
+          </table>
+          <p id="bookings-empty" class="empty" hidden>No bookings match these filters.</p>
+        </div>
+      </section>
+
+      <!-- ── Dashboard (root: /panel/dashboard — post-login landing) ── -->
+      <section id="tab-dashboard" class="panel" role="tabpanel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>Dashboard</h2>
+            <p class="muted">Daily aggregates (Asia/Kolkata).</p>
+          </div>
+          <div class="dash-picker">
+            <label class="field inline">
+              <span>Date</span>
+              <input type="date" id="dash-date" />
+            </label>
+            <button class="btn btn-gold" id="dash-refresh" type="button">Load</button>
+          </div>
+        </div>
+        <div class="stat-grid" id="dash-stats">
+          <div class="stat-card"><span class="stat-label">Bookings</span>
+            <span class="stat-value" id="stat-bookings">—</span></div>
+          <div class="stat-card"><span class="stat-label">Confirmed</span>
+            <span class="stat-value" id="stat-confirmed">—</span></div>
+          <div class="stat-card"><span class="stat-label">Revenue (online)</span>
+            <span class="stat-value gold" id="stat-online">—</span></div>
+          <div class="stat-card"><span class="stat-label">Revenue (at centre)</span>
+            <span class="stat-value gold" id="stat-centre">—</span></div>
+        </div>
+        <p id="dash-date-label" class="muted center" hidden></p>
+      </section>
+
+      <!-- ══════════ FULL-PAGE EDITORS (phase 14/15 path routes) ══════════ -->
+
+      <!-- Barber create/edit — /panel/barbers/new · /panel/barbers/{id}/edit -->
+      <section id="page-barber-edit" class="panel page" role="tabpanel" hidden>
+        <div class="page-head">
+          <button class="btn btn-ghost" type="button" data-back="barbers">← Back</button>
+          <div>
+            <h2 id="barber-page-title">New barber</h2>
+            <p class="muted" id="barber-page-sub">
+              Details and weekly working hours — one page, opens at the top.
+            </p>
+          </div>
+        </div>
+
+        <div class="page-grid">
+          <form id="barber-form" class="card form-card">
+            <input type="hidden" id="barber-id" />
+            <label class="field"><span>Name *</span>
+              <input type="text" id="barber-name" required maxlength="120" /></label>
+            <label class="field"><span>Photo URL</span>
+              <input type="url" id="barber-photo" maxlength="500"
+                     placeholder="https://… (HTTPS portrait, optional)" /></label>
+            <label class="field"><span>Bio</span>
+              <textarea id="barber-bio" rows="3" placeholder="Short intro for the app"></textarea></label>
+            <label class="field"><span>Specialties <em class="hint">(comma separated)</em></span>
+              <input type="text" id="barber-specialties"
+                     placeholder="Fades, beard sculpting, classic cuts" /></label>
+            <label class="check"><input type="checkbox" id="barber-active" checked />
+              <span>Active (visible to customers)</span></label>
+            <div class="preview" id="barber-photo-preview" hidden>
+              <img id="barber-photo-img" alt="" />
+            </div>
+            <p class="form-error" id="barber-form-error" hidden></p>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" data-back="barbers">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save barber</button>
+            </div>
+          </form>
+
+          <!-- Weekly schedule lives on the same edit page -->
+          <div class="card form-card">
+            <h3>Weekly schedule</h3>
+            <p class="muted" id="schedule-sub">
+              Monday = 0 … Sunday = 6. Saved together with the barber on
+              <strong>New</strong>; use <strong>Save schedule</strong> after editing.
+            </p>
+            <form id="schedule-form">
+              <input type="hidden" id="schedule-barber-id" />
+              <table class="table schedule-table">
+                <thead>
+                  <tr><th>Day</th><th>Open</th><th>Close</th><th>Closed?</th></tr>
+                </thead>
+                <tbody id="schedule-tbody"></tbody>
+              </table>
+              <p class="form-error" id="schedule-form-error" hidden></p>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-gold">Save schedule</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Service create/edit — /panel/services/new · /panel/services/{id}/edit -->
+      <section id="page-service-edit" class="panel page" role="tabpanel" hidden>
+        <div class="page-head">
+          <button class="btn btn-ghost" type="button" data-back="services">← Back</button>
+          <div>
+            <h2 id="service-page-title">New service</h2>
+            <p class="muted" id="service-page-sub">
+              Salon plan row — price in ₹, hair colour keeps the ₹100 online advance.
+            </p>
+          </div>
+        </div>
+
+        <div class="page-grid page-grid-narrow">
+          <form id="service-form" class="card form-card">
+            <input type="hidden" id="service-id" />
+            <label class="field"><span>Name *</span>
+              <input type="text" id="service-name" required maxlength="120" /></label>
+            <label class="field"><span>Description</span>
+              <textarea id="service-description" rows="2"></textarea></label>
+            <div class="field-row">
+              <label class="field"><span>Duration (min) *</span>
+                <input type="number" id="service-duration" min="1" step="1" required /></label>
+              <label class="field"><span>Price (₹) *</span>
+                <input type="number" id="service-price" min="0" step="1" required /></label>
+            </div>
+            <label class="field"><span>Price type</span>
+              <select id="service-price-type">
+                <option value="fixed">fixed — pay full balance at centre</option>
+                <option value="variable_advance">variable_advance — ₹100 online, rest at centre</option>
+              </select></label>
+            <p class="hint" id="service-type-hint" hidden>
+              Hair colour: online advance stays <strong>₹100 flat</strong>; admin sets the
+              real price (<code>final_price_at_center</code>) when completing the booking.
+            </p>
+            <label class="check"><input type="checkbox" id="service-active" checked />
+              <span>Active (bookable online)</span></label>
+            <p class="form-error" id="service-form-error" hidden></p>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" data-back="services">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save service</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ══════════════════════ MODALS (destructive / final price only) ══════════════════════ -->
+
+  <!-- Complete booking (final price at centre) -->
+  <div class="modal-backdrop" id="complete-modal" hidden>
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3>Complete booking</h3>
+        <button class="modal-close" data-close="complete-modal" type="button">✕</button>
+      </div>
+      <form id="complete-form">
+        <input type="hidden" id="complete-booking-id" />
+        <p class="muted" id="complete-summary"></p>
+        <label class="field"><span>Final price at centre (₹)
+            <em class="hint" id="complete-require-hint"></em></span>
+          <input type="number" id="complete-final-price" min="1" step="1"
+                 placeholder="e.g. 250" /></label>
+        <p class="form-error" id="complete-form-error" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close="complete-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Mark completed</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/panel/app.js"></script>
+</body>
+</html>

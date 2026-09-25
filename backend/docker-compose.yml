@@ -1,0 +1,28 @@
+# Local development Postgres ONLY (phase 0a scaffold).
+# Note: the repo-root docker-compose.yml belongs to salon-integration (deploy stack) —
+# do not create or edit it from the backend side.
+#
+# Usage:  docker compose up -d
+# If host port 5432 is taken (shared dev machines), override:
+#   SALON_DB_PORT=5434 docker compose up -d
+#   DATABASE_URL=postgresql+psycopg://salon:salon@localhost:5434/salon alembic upgrade head
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: salon-dev-postgres
+    environment:
+      POSTGRES_USER: salon
+      POSTGRES_PASSWORD: salon
+      POSTGRES_DB: salon
+    ports:
+      - "${SALON_DB_PORT:-5432}:5432"
+    volumes:
+      - salon_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salon -d salon"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  salon_pgdata:

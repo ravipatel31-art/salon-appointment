@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"
+     role="img" aria-label="Salon">
+  <title>Salon</title>
+  <!-- Salon admin panel mark — wine #7A2E4A · gold #B08D57 · cream #FBF7F0
+       (brand colours per CONTRACT §Admin browser dashboard). Same-origin
+       asset: CSP img-src 'self' allows it without any CDN. -->
+  <circle cx="64" cy="64" r="61" fill="#FBF7F0"/>
+  <circle cx="64" cy="64" r="59" fill="none" stroke="#B08D57" stroke-width="4"/>
+  <!-- scissors, scaled 1.1 about the centre so the mark fills the roundel -->
+  <g transform="translate(-6.4,-6.4) scale(1.1)">
+    <g fill="none" stroke="#7A2E4A" stroke-width="6.5"
+       stroke-linecap="round" stroke-linejoin="round">
+      <!-- left handle → pivot → upper-right blade -->
+      <path d="M44 94 L64 66 L86 28"/>
+      <!-- right handle → pivot → upper-left blade -->
+      <path d="M84 94 L64 66 L42 28"/>
+      <!-- finger rings -->
+      <circle cx="44" cy="94" r="10"/>
+      <circle cx="84" cy="94" r="10"/>
+    </g>
+    <!-- pivot pin -->
+    <circle cx="64" cy="66" r="5.5" fill="#B08D57" stroke="#7A2E4A" stroke-width="2"/>
+  </g>
+</svg>

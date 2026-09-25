@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Salon — Shop Guide</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 14mm 16mm 14mm;
+    @bottom-center {
+      content: "Salon · Confidential shop guide · Page " counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #7A2E4A;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+    color: #2a1a22;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    margin: 0;
+  }
+  h1, h2, h3 { color: #7A2E4A; margin: 0 0 0.4em; }
+  h1 { font-size: 22pt; letter-spacing: 0.5px; }
+  h2 {
+    font-size: 13pt;
+    border-bottom: 2px solid #B08D57;
+    padding-bottom: 4px;
+    margin-top: 1.4em;
+  }
+  .cover {
+    text-align: center;
+    padding: 18mm 10mm 10mm;
+    background: linear-gradient(135deg, #54203A, #7A2E4A 55%, #B15C7E);
+    color: #fff;
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 26pt; margin-bottom: 6px; }
+  .cover .tag { color: #E7CFA6; font-size: 11pt; letter-spacing: 1px; }
+  .cover .mark {
+    width: 72px; height: 72px; margin: 0 auto 10px;
+    background: #B08D57;
+    border-radius: 18px;
+    line-height: 72px;
+    font-size: 34px;
+    color: #fff;
+  }
+  .pill {
+    display: inline-block;
+    background: #F6E7EE;
+    color: #7A2E4A;
+    border: 1px solid #E7CFA6;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 9pt;
+    margin: 2px 3px 2px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0 12px;
+    font-size: 10pt;
+  }
+  th {
+    background: #7A2E4A;
+    color: #fff;
+    text-align: left;
+    padding: 7px 8px;
+    font-weight: 600;
+  }
+  td { padding: 6px 8px; border-bottom: 1px solid #ead8e1; vertical-align: top; }
+  tr:nth-child(even) td { background: #faf3f6; }
+  .price { font-weight: 700; color: #7A2E4A; white-space: nowrap; }
+  .muted { color: #665; font-size: 9.5pt; }
+  .note {
+    background: #FFF8EC;
+    border-left: 4px solid #B08D57;
+    padding: 8px 10px;
+    margin: 10px 0;
+    font-size: 10pt;
+  }
+  .steps { margin: 6px 0 0; padding-left: 1.2em; }
+  .steps li { margin-bottom: 5px; }
+  .grid2 { display: table; width: 100%; }
+  .grid2 > div { display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; }
+  .badge-row { margin-top: 4px; }
+  .footer-brand {
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 2px solid #B08D57;
+    font-size: 9pt;
+    color: #7A2E4A;
+    text-align: center;
+  }
+  .avoid { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="mark">✂</div>
+  <h1>Salon</h1>
+  <div class="tag">BOOK · PAY ADVANCE · SKIP THE QUEUE</div>
+  <p style="margin:12px 0 0;font-size:10.5pt;color:#f5e6ee;">
+    Shop guide for staff &amp; counter — services, online advance rules,
+    booking flow, and the owner admin panel.
+  </p>
+</div>
+
+<h2>What customers see</h2>
+<p>
+  Customers book from the mobile app: pick a <strong>barber</strong> → service + wash →
+  date &amp; 15-minute slot → pay <strong>50% advance online</strong> (Razorpay) →
+  booking is <strong>confirmed</strong>. They show up, use the service, and pay the
+  balance at the counter.
+</p>
+<div class="badge-row">
+  <span class="pill">₹ prices online</span>
+  <span class="pill">Asia/Kolkata slots</span>
+  <span class="pill">15-min grid</span>
+  <span class="pill">12-min payment hold</span>
+  <span class="pill">Guest checkout (no account needed)</span>
+</div>
+
+<h2>Service plan (online prices)</h2>
+<div class="avoid">
+<table>
+  <thead>
+    <tr><th>Service</th><th>Duration</th><th>Online price</th><th>Advance online</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Haircut</td><td>60 min</td><td class="price">₹100</td><td>50% (₹50)</td><td class="muted">Wash add-on +₹30 / +15 min</td></tr>
+    <tr><td>Shaving</td><td>30 min</td><td class="price">₹70</td><td>50% (₹35)</td><td class="muted">Wash allowed</td></tr>
+    <tr><td>Beard trim</td><td>15 min</td><td class="price">₹50</td><td>50% (₹25)</td><td class="muted">Wash allowed</td></tr>
+    <tr><td>Massage + Haircut</td><td>90 min</td><td class="price">₹200</td><td>50% (₹100)</td><td class="muted">Head massage + haircut</td></tr>
+    <tr><td>Shaving + Massage</td><td>60 min</td><td class="price">₹130</td><td>50% (₹65)</td><td class="muted">Shave + head massage</td></tr>
+    <tr><td>Haircut + Shaving</td><td>90 min</td><td class="price">₹180</td><td>50% (₹90)</td><td class="muted">Combo</td></tr>
+    <tr><td>Haircut + Beard trim</td><td>75 min</td><td class="price">₹130</td><td>50% (₹65)</td><td class="muted">Combo</td></tr>
+    <tr><td>Full combo</td><td>120 min</td><td class="price">₹250</td><td>50% (₹125)</td><td class="muted">Haircut + beard + massage + wash</td></tr>
+    <tr><td>Hair color</td><td>90 min</td><td class="price">₹100 advance</td><td>₹100 flat</td><td class="muted">Actual price decided at shop on completion</td></tr>
+    <tr><td>Wash add-on</td><td>+15 min</td><td class="price">+₹30</td><td>—</td><td class="muted">Allowed on any service</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <strong>Advance rule:</strong> fixed services → online advance = 50% of total
+  (rounded up). Hair color → fixed <strong>₹100</strong> online; admin sets the final
+  price at the shop and balance is collected there. Cancel <strong>≥ 2 hours</strong>
+  before the slot → automatic refund of the advance; later cancel → advance is forfeited.
+</div>
+
+<h2>Counter flow (staff)</h2>
+<ol class="steps">
+  <li>Customer arrives → check <strong>My bookings</strong> on their phone, or open the <strong>Admin panel → Bookings</strong>.</li>
+  <li>Unpaid slots disappear after <strong>12 minutes</strong> automatically (hold expiry).</li>
+  <li>After service: Admin panel → booking → <strong>Complete</strong> (hair color: enter final ₹ at center). Balance = final − online paid.</li>
+  <li>No-show → mark <strong>No show</strong> in the panel.</li>
+  <li>Refunds (cancel ≥ 2h) are processed from the payment side; status becomes <strong>Refunded</strong>.</li>
+</ol>
+
+<h2>Owner admin panel</h2>
+<div class="grid2">
+  <div>
+    <p style="margin-top:0"><strong>Pages (browser):</strong></p>
+    <ul style="margin-top:0">
+      <li><strong>Login</strong> — own page (no dashboard until signed in)</li>
+      <li><strong>Dashboard</strong> — daily bookings &amp; revenue</li>
+      <li><strong>Barbers</strong> — name, photo, bio, weekly hours</li>
+      <li><strong>Services</strong> — edit the salon plan (₹ / duration)</li>
+      <li><strong>Bookings</strong> — filters, complete / no-show</li>
+    </ul>
+  </div>
+  <div>
+    <p style="margin-top:0"><strong>Local addresses:</strong></p>
+    <ul style="margin-top:0">
+      <li>Panel home: <code>http://localhost:8000/panel</code></li>
+      <li>Login: <code>http://localhost:8000/panel/login</code></li>
+      <li>Dashboard: <code>http://localhost:8000/panel/dashboard</code></li>
+      <li>API health: <code>http://localhost:8000/health</code></li>
+    </ul>
+    <p class="muted">Same admin email/password as the seed in <code>.env</code>.</p>
+  </div>
+</div>
+
+<h2>Running the system (Docker)</h2>
+<p>
+  The whole stack is Docker Compose: <strong>Postgres</strong> + <strong>API</strong>
+  (migrations → seed → server → admin panel static files). Rebuild once after code
+  changes; otherwise a restart is enough:
+</p>
+<pre style="background:#f7eef3;border:1px solid #e7cfa6;padding:8px 10px;font-size:9.5pt;border-radius:6px;white-space:pre-wrap;"># first time / after code changes
+docker compose up -d --build
+
+# day-to-day (after machine reboot, etc.)
+docker compose restart
+# or
+docker compose up -d
+
+# status
+docker compose ps
+curl -f http://localhost:8000/health</pre>
+<p class="muted">
+  Data persists in volume <code>salon_pgdata</code>. Env secrets live in root
+  <code>.env</code> (never commit). For public HTTPS (Razorpay webhooks) use Caddy
+  or a Cloudflare tunnel in front of port 8000 — see <code>deploy/NOTES.md</code>.
+</p>
+
+<h2>Cloudflare Tunnel (quick link set)</h2>
+<p>With the stack running, expose port 8000 (quick try):</p>
+<pre style="background:#f7eef3;border:1px solid #e7cfa6;padding:8px 10px;font-size:9.5pt;border-radius:6px;white-space:pre-wrap;">cloudflared tunnel --url http://localhost:8000</pre>
+<p>Then open the printed <code>https://….trycloudflare.com</code> URL and append:</p>
+<table>
+  <thead><tr><th>What</th><th>Path</th></tr></thead>
+  <tbody>
+    <tr><td>Admin login page</td><td><code>/panel/login</code></td></tr>
+    <tr><td>Dashboard (after login)</td><td><code>/panel/dashboard</code></td></tr>
+    <tr><td>Barbers / plan</td><td><code>/panel/barbers</code> · <code>/panel/services</code></td></tr>
+    <tr><td>API health</td><td><code>/health</code></td></tr>
+    <tr><td>API docs</td><td><code>/docs</code></td></tr>
+  </tbody>
+</table>
+<div class="note">
+  For a <strong>stable</strong> hostname, create a named Cloudflare tunnel and DNS
+  route (e.g. <code>admin.example.com → http://localhost:8000</code>) instead of the
+  ephemeral trycloudflare URL. Keep <code>.env</code> secrets private; use mock
+  payments (<code>RAZORPAY_MOCK=1</code>) only for demos.
+</div>
+
+<div class="footer-brand">
+  Salon appointment system · FastAPI + Flutter · India ₹ · Asia/Kolkata<br/>
+  Advance booking · Barber schedules · Razorpay · Admin panel
+</div>
+
+</body>
+</html>

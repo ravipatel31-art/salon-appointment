@@ -1,0 +1,439 @@
+/* ══════════════════════════════════════════════════════════════
+   Salon Admin Panel — brand: wine #7A2E4A · gold #B08D57 · cream
+   Vanilla CSS, no CDN. Desktop-first with light responsive rules.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --wine: #7A2E4A;
+  --wine-dark: #5d2138;
+  --wine-soft: #f3e6eb;
+  --gold: #B08D57;
+  --gold-dark: #96764a;
+  --gold-soft: #f6efe3;
+  --cream: #FBF7F0;
+  --cream-deep: #f3ece1;
+  --ink: #2d2330;
+  --muted: #7d7280;
+  --line: #e7ddd0;
+  --ok: #2e7d4f;
+  --danger: #b3261e;
+  --shadow: 0 8px 28px rgba(45, 35, 48, 0.10);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cream);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+h1, h2, h3 { font-weight: 650; letter-spacing: 0.01em; margin: 0 0 4px; }
+
+/* The `hidden` attribute must always win over component display rules
+   (.shell-view/.login-view set `display:flex`, which otherwise beat the
+   UA `[hidden]{display:none}`). Phase 15: /panel/login is the login page
+   *only* — the admin shell (topbar + tabs) must not render until a
+   protected route shows it, and vice versa after login. */
+[hidden] { display: none !important; }
+h2 { font-size: 22px; }
+h3 { font-size: 17px; }
+em { font-style: normal; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.hint { font-size: 12px; color: var(--muted); font-style: normal; }
+code { background: var(--cream-deep); padding: 1px 5px; border-radius: 4px; }
+
+/* Phase 16 — app logo (same-origin /panel/logo.svg). Kept for any legacy
+   ✦ mark still rendered by JS-free markup. */
+.logo-mark { color: var(--gold); margin-right: 2px; }
+
+/* ───────────────────────── buttons ───────────────────────── */
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--cream-deep);
+  color: var(--ink);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s;
+}
+.btn:hover { filter: brightness(0.97); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary { background: var(--wine); color: #fff; }
+.btn-primary:hover { background: var(--wine-dark); filter: none; }
+.btn-gold { background: var(--gold); color: #fff; }
+.btn-gold:hover { background: var(--gold-dark); filter: none; }
+.btn-ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+.btn-ghost:hover { border-color: var(--gold); color: var(--wine); filter: none; }
+.btn-danger { background: transparent; border-color: var(--line); color: var(--danger); }
+.btn-danger:hover { background: #fbeae9; border-color: var(--danger); }
+.btn-block { width: 100%; }
+.btn-sm { padding: 4px 10px; font-size: 12.5px; border-radius: 6px; }
+
+/* ───────────────────────── forms ───────────────────────── */
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field > span { font-size: 12.5px; font-weight: 650; color: var(--wine); letter-spacing: 0.03em; }
+.field.inline { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; }
+.field.inline > span { white-space: nowrap; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+input[type="text"], input[type="email"], input[type="password"],
+input[type="url"], input[type="number"], input[type="date"],
+input[type="time"], select, textarea {
+  font: inherit;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+input[type="time"], input[type="date"] { min-width: 130px; }
+select { cursor: pointer; }
+
+.check { display: flex; align-items: center; gap: 9px; margin: 6px 0 14px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--wine); cursor: pointer; }
+
+.form-error {
+  background: #fbeae9;
+  color: var(--danger);
+  border: 1px solid #f3c6c2;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  margin: 4px 0 10px;
+}
+
+/* ───────────────────────── login ───────────────────────── */
+.login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(1000px 500px at 15% -10%, rgba(176, 141, 87, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 110% 110%, rgba(122, 46, 74, 0.16), transparent 55%),
+    var(--cream);
+  padding: 24px;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--wine);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 34px 32px 22px;
+}
+.login-brand { text-align: center; margin-bottom: 24px; }
+/* Phase 16 — large app logo above the brand title on /panel/login */
+.login-logo {
+  display: block;
+  width: 104px;
+  height: 104px;
+  margin: 0 auto 14px;
+  filter: drop-shadow(0 6px 16px rgba(122, 46, 74, 0.20));
+}
+.login-brand h1 { font-size: 26px; color: var(--wine); }
+.login-brand h1 em { color: var(--gold); }
+.login-brand p { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+.login-foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 18px; }
+
+/* ───────────────────────── shell / topbar ───────────────────────── */
+.shell-view { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  background: var(--wine);
+  color: #fff;
+  padding: 0 26px;
+  height: 62px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+.brand { font-weight: 700; font-size: 17px; white-space: nowrap; }
+.brand em { color: var(--gold); }
+/* Phase 16 — small app logo in the topbar brand slot. Stays inline-block
+   (NOT flex: flex would drop the text node's space and render "SalonAdmin"). */
+.brand-logo {
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  margin-right: 9px;
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+.tabs { display: flex; gap: 4px; flex: 1; }
+.tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.78);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14.5px;
+  padding: 9px 16px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+.tab:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.tab.active { color: #fff; border-bottom-color: var(--gold); background: rgba(255, 255, 255, 0.10); }
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.whoami { font-size: 13px; color: rgba(255, 255, 255, 0.85); }
+.topbar .btn-ghost { color: rgba(255, 255, 255, 0.85); border-color: rgba(255, 255, 255, 0.35); }
+.topbar .btn-ghost:hover { color: #fff; border-color: var(--gold); background: rgba(255,255,255,0.08); }
+
+/* ───────────────────────── content / cards ───────────────────────── */
+.content { flex: 1; padding: 30px 34px 60px; max-width: 1240px; width: 100%; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; animation: fade 0.18s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+.panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.panel-head p { margin: 2px 0 0; font-size: 13.5px; }
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  overflow-x: auto;
+}
+
+/* ───────────────────────── tables ───────────────────────── */
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--cream-deep);
+  white-space: nowrap;
+}
+.table td { padding: 11px 10px; border-bottom: 1px solid var(--cream-deep); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #fdfaf5; }
+.table .num { text-align: right; }
+.table td.num { font-variant-numeric: tabular-nums; }
+.col-actions { text-align: right; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.empty { text-align: center; color: var(--muted); padding: 26px 0 10px; margin: 0; }
+
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--gold-soft);
+  background: linear-gradient(135deg, var(--wine), var(--gold));
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px;
+}
+.strong { font-weight: 650; }
+.sub { display: block; font-size: 12px; color: var(--muted); }
+
+.chip {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--cream-deep);
+  color: var(--muted);
+  margin: 1px 3px 1px 0;
+  white-space: nowrap;
+}
+.chip.gold { background: var(--gold-soft); color: var(--gold-dark); }
+.chip.wine { background: var(--wine-soft); color: var(--wine); }
+
+.badge {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.badge.pending_payment { background: var(--gold-soft); color: var(--gold-dark); }
+.badge.confirmed { background: var(--wine-soft); color: var(--wine); }
+.badge.completed { background: #e5f3eb; color: var(--ok); }
+.badge.cancelled, .badge.refunded { background: #eceff1; color: #5f6b73; }
+.badge.no_show { background: #fbeae9; color: var(--danger); }
+.badge.on { background: #e5f3eb; color: var(--ok); }
+.badge.off { background: #fbeae9; color: var(--danger); }
+
+/* ───────────────────────── filters / dashboard ───────────────────────── */
+.filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+}
+.filters .btn { margin-bottom: 1px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--wine);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stat-card:nth-child(3), .stat-card:nth-child(4) { border-top-color: var(--gold); }
+.stat-label {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 650;
+}
+.stat-value { font-size: 34px; font-weight: 700; color: var(--wine); font-variant-numeric: tabular-nums; }
+.stat-value.gold { color: var(--gold-dark); }
+.dash-picker { display: flex; align-items: flex-end; gap: 12px; }
+#dash-date-label { margin-top: 16px; font-size: 13.5px; }
+
+/* ───────────────────────── modals ───────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 35, 48, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 20px;
+  z-index: 100;
+  overflow-y: auto;
+}
+.modal-backdrop[hidden] { display: none; }
+.modal {
+  background: #fff;
+  border-radius: var(--radius);
+  border-top: 4px solid var(--gold);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.30);
+  width: 100%;
+  max-width: 520px;
+  padding: 22px 26px 24px;
+}
+.modal-sm { max-width: 420px; }
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.modal-head h3 { color: var(--wine); }
+.modal-close {
+  appearance: none; border: none; background: transparent;
+  font-size: 16px; color: var(--muted); cursor: pointer; padding: 4px 8px;
+  border-radius: 6px;
+}
+.modal-close:hover { background: var(--cream-deep); color: var(--wine); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+.schedule-table td { padding: 7px 8px; }
+.schedule-table td:first-child { font-weight: 650; color: var(--wine); white-space: nowrap; }
+.schedule-table input[type="time"] { width: 118px; padding: 6px 8px; }
+
+.preview { margin-bottom: 12px; }
+.preview img {
+  max-height: 130px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--cream-deep);
+}
+
+/* ───────────── full-page editors (phase 14: #/…/edit routes) ───────────── */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.page-head h2 { margin: 0; }
+.page-head p { margin: 3px 0 0; font-size: 13.5px; }
+.page-head .btn { flex: none; margin-top: 3px; }
+.page-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) minmax(340px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.page-grid-narrow { grid-template-columns: minmax(340px, 640px); }
+.page-grid .card { overflow: visible; }
+.form-card h3 { color: var(--wine); margin-bottom: 6px; }
+.form-card .muted { margin-top: 0; font-size: 13px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+/* ───────────────────────── toast ───────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  padding: 11px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  z-index: 200;
+  border-left: 4px solid var(--gold);
+}
+.toast[hidden] { display: none; }
+.toast.err { border-left-color: var(--danger); }
+
+/* ───────────────────────── responsive ───────────────────────── */
+@media (max-width: 1080px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .page-grid, .page-grid-narrow { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .topbar { flex-wrap: wrap; height: auto; padding: 10px 16px; gap: 8px; }
+  .tabs { order: 3; width: 100%; overflow-x: auto; }
+  .content { padding: 20px 16px 50px; }
+  .panel-head { flex-direction: column; align-items: stretch; }
+  .field-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .stat-value { font-size: 28px; }
+}
